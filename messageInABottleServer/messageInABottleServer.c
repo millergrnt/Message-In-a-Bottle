@@ -44,30 +44,30 @@ void run_message_thread(int connected_socket_fd){
 	char message[MAX_MESSAGE_LENGTH];
 	int n;
 
-	//Send first message
-	printf("You: ");
-	fgets(message, MAX_MESSAGE_LENGTH, stdin);
-
+	strcpy(message, " ");
 	//Until the user enters QUIT keep going
 	while(strcmp(message, "QUIT") != 0){
 
-		//Send message and check for errors
-		n = send(connected_socket_fd, message, strlen(message), 0);
-		if(n < 0)
-			report_error_and_die("Error writing to the socket");
-
+		printf("\nThem: ");
 		//Receive response and check for errors
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
 		if(n < 0)
 			report_error_and_die("Error reading from socket");
-		printf("\nThem: %s\n", message);
+		printf("%s\n", message);
 
 		//Zero out the message buffer so there are no left over chars
 		bzero(message, MAX_MESSAGE_LENGTH);
 
 		//Prompt user
-		printf("You: ");
+		printf("\nYou: ");
 		fgets(message, MAX_MESSAGE_LENGTH, stdin);
+
+		if(strcmp(message, "QUIT") != 0){
+			//Send message and check for errors
+			n = send(connected_socket_fd, message, strlen(message), 0);
+			if(n < 0)
+				report_error_and_die("Error writing to the socket");
+		}
 	}
 
 	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
@@ -140,7 +140,7 @@ int wait_for_connections(int *server_fd){
 	inet_ntop(AF_INET, ((struct sockaddr*) &client_address)->sa_data, address, INET_ADDRSTRLEN);
 	printf("Connected to %s\n", address);
 
-	//run_message_thread(connected_socket_fd);
+	run_message_thread(connected_socket_fd);
 
 	return EXIT_SUCCESS;
 }

@@ -16,6 +16,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <string.h>
+#include <arpa/inet.h>
+
+#define MAX_MESSAGE_LENGTH 141
+#define KILL_WHOLE_SOCKET 2
 
 
 /**
@@ -23,51 +28,86 @@
 	and then exits the program.
 */
 void report_error_and_die(char *error_message){
-	fprintf(stderr, error_message);
+	fprintf(stderr, "%s\n", error_message);
 	exit(EXIT_FAILURE);
+}
+
+
+/**
+	Controls the actual message sending and receiving.
+	For now is a one to one ratio, next thing to do is 
+	make two threads. One for sending messages, the other
+	for receiving messages.
+*/
+void run_message_thread(int connected_socket_fd){
+	//Maximum message size is 141 characters
+	char message[MAX_MESSAGE_LENGTH];
+	int n;
+
+	//Send first message
+	printf("You: ");
+	fgets(message, MAX_MESSAGE_LENGTH, stdin);
+
+	//Until the user enters QUIT keep going
+	while(strcmp(message, "QUIT") != 0){
+
+		//Send message and check for errors
+		n = send(connected_socket_fd, message, strlen(message), 0);
+		if(n < 0)
+			report_error_and_die("Error writing to the socket");
+
+		//Receive response and check for errors
+		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
+		if(n < 0)
+			report_error_and_die("Error reading from socket");
+		printf("\nThem: %s\n", message);
+
+		//Zero out the message buffer so there are no left over chars
+		bzero(message, MAX_MESSAGE_LENGTH);
+
+		//Prompt user
+		printf("You: ");
+		fgets(message, MAX_MESSAGE_LENGTH, stdin);
+	}
+
+	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
+	shutdown(connected_socket_fd, KILL_WHOLE_SOCKET);
 }
 
 
 /**
 	Creates the socket to be used in chat by the server
 */
-int make_server_socket(){
+int connect_to_server(char *server_dns){
 	//fd = File Descriptor
-	int sock_fd, connected_socket_fd, client_length;
+	int sock_fd;
 	int unsigned port = 31337;
-	struct sockaddr_in server_address, client_address;
+	struct sockaddr_in server_address;
+	struct hostent *server;
 
 	//Create socket and then check if it was successful
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sock_error_check < 0)
-		report_error_and_die("Error creating socket\n");
+	if(sock_fd < 0)
+		report_error_and_die("Error creating socket");
+	
+	//Get server data
+	server = gethostbyname(server_dns);
+	if(server == NULL){
+		report_error_and_die("Error getting server host data");
+	}
 
 	//Zero out the server_address array, this will prevent 
 	//errors based around us not knowing if the memory is 0
 	bzero((char *) &server_address, sizeof(server_address));
 	server_address.sin_family = AF_INET;
-	server_address.sin_addr.s_addr = INADDR_ANY;
+	bcopy((char *)server->h_addr, (char *)&server_address.sin_addr.s_addr,
+			server->h_length);
 	server_address.sin_port = htons(port);
 
-	//Bind the socket to the server
-	if(bind(sock_fd, 
-		(struct sockaddr *) &server_address, 
-		sizeof(server_address) < 0)
-		report_error_and_die("Error binding server socket");
+	if(connect(sock_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+		report_error_and_die("Unable to connect to the server.");
 
 	return sock_fd;
-
-}
-
-
-/**
-	Sends a mesage across the wire
-	Params:
-		Socket to send over
-
-*/
-int send_message(){
-	return EXIT_SUCCESS;
 }
 
 
@@ -79,21 +119,14 @@ int send_message(){
 	Returns:
 		EXIT_SUCCESS if okay
 		EXIT_FAILURE otherwise
-
-	//Server waits for a connection and then accepts it.
-	listen(sock_fd, 1);
-	client_length = sizeof(client_address);
-	connected_socket_fd = accept(sock_fd, (struct sockaddr*) &client_address, &client_length);
-
-	if(connected_socket_fd < 0)
-		report_error_and_die("Error with client connection");
 */
 int main(int argc, char ** argv){
 	if(argc > 1){
 		printf("**************Welcome to Messaging in a Bottle**************\n");
 		printf("You are currently connecting to: %s\n", argv[1]);
 		printf("Be Nice and have a good time!!\n");
-		int socket = make_server_socket();
+		int socket_fd = connect_to_server(argv[1]);
+		run_message_thread(socket_fd);
 	} else {
 		printf("**************Welcome to Message in a Bottle**************\n");
 		printf("You never supplied someone to talk to :( exiting\n");
