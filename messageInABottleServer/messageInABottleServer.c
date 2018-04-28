@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #define MAX_MESSAGE_LENGTH 141
 #define KILL_WHOLE_SOCKET 2
@@ -43,15 +44,30 @@ void run_message_thread(int connected_socket_fd){
 	char message[MAX_MESSAGE_LENGTH];
 	int n;
 
+	//Send first message
 	printf("You: ");
 	fgets(message, MAX_MESSAGE_LENGTH, stdin);
+
+	//Until the user enters QUIT keep going
 	while(strcmp(message, "QUIT") != 0){
+
+		//Send message and check for errors
 		n = send(connected_socket_fd, message, strlen(message), 0);
 		if(n < 0)
 			report_error_and_die("Error writing to the socket");
+
+		//Receive response and check for errors
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
+		if(n < 0)
+			report_error_and_die("Error reading from socket");
 		printf("\nThem: %s\n", message);
+
+		//Zero out the message buffer so there are no left over chars
 		bzero(message, MAX_MESSAGE_LENGTH);
+
+		//Prompt user
+		printf("You: ");
+		fgets(message, MAX_MESSAGE_LENGTH, stdin);
 	}
 
 	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
@@ -87,8 +103,10 @@ int make_server_socket(){
 	//Bind the socket to the server
 	if(bind(sock_fd, 
 		(struct sockaddr *) &server_address, 
-		sizeof(server_address) < 0))
+		sizeof(struct sockaddr_in)) < 0){
+		perror("bind");
 		report_error_and_die("Error binding server socket");
+	}
 
 	return sock_fd;
 
@@ -109,6 +127,7 @@ int wait_for_connections(int *server_fd){
 	int connected_socket_fd;
 	int unsigned client_length;
 	struct sockaddr_in client_address;
+	char address[INET_ADDRSTRLEN];
 
 	//Server waits for a connection and then accepts it.
 	listen(*server_fd, 1);
@@ -118,7 +137,10 @@ int wait_for_connections(int *server_fd){
 	if(connected_socket_fd < 0)
 		report_error_and_die("Error with client connection");
 
-	run_message_thread(connected_socket_fd);
+	inet_ntop(AF_INET, ((struct sockaddr*) &client_address)->sa_data, address, INET_ADDRSTRLEN);
+	printf("Connected to %s\n", address);
+
+	//run_message_thread(connected_socket_fd);
 
 	return EXIT_SUCCESS;
 }
@@ -126,23 +148,15 @@ int wait_for_connections(int *server_fd){
 
 /**
 	Main function, handles input and calls the send message functions
-	Params:
-		argc - Count of arguments
-		argv - Argument Array
 	Returns:
 		EXIT_SUCCESS if okay
 		EXIT_FAILURE otherwise
 */
-int main(int argc, char ** argv){
-	if(argc > 1){
-		printf("**************Welcome to Messaging in a Bottle**************\n");
-		printf("You are currently connecting to: %s\n", argv[1]);
-		printf("Be Nice and have a good time!!\n");
-		int socket_fd = make_server_socket();
-		//wait_for_connections(&sock_fd);
-	} else {
-		printf("**************Welcome to Message in a Bottle**************\n");
-		printf("You never supplied someone to talk to :( exiting\n");
-	}
+int main(){
+	printf("**************Welcome to Messaging in a Bottle**************\n");
+	printf("Be Nice and have a good time!!\n");
+	int socket_fd = make_server_socket();
+	wait_for_connections(&socket_fd);
+
 	return EXIT_SUCCESS;
 }
