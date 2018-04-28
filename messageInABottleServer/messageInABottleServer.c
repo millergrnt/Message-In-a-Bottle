@@ -48,18 +48,18 @@ void run_message_thread(int connected_socket_fd){
 	//Until the user enters QUIT keep going
 	while(strcmp(message, "QUIT") != 0){
 
-		printf("\nThem: ");
+		bzero(message, MAX_MESSAGE_LENGTH);
+		printf("Them: ");
 		//Receive response and check for errors
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
 		if(n < 0)
 			report_error_and_die("Error reading from socket");
 		printf("%s\n", message);
-
 		//Zero out the message buffer so there are no left over chars
 		bzero(message, MAX_MESSAGE_LENGTH);
 
 		//Prompt user
-		printf("\nYou: ");
+		printf("You: ");
 		fgets(message, MAX_MESSAGE_LENGTH, stdin);
 
 		if(strcmp(message, "QUIT") != 0){
@@ -138,7 +138,7 @@ int wait_for_connections(int *server_fd){
 		report_error_and_die("Error with client connection");
 
 	inet_ntop(AF_INET, ((struct sockaddr*) &client_address)->sa_data, address, INET_ADDRSTRLEN);
-	printf("Connected to %s\n", address);
+	printf("Connected to %s", address);
 
 	run_message_thread(connected_socket_fd);
 

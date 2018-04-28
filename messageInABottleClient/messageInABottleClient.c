@@ -55,12 +55,13 @@ void run_message_thread(int connected_socket_fd){
 		n = send(connected_socket_fd, message, strlen(message), 0);
 		if(n < 0)
 			report_error_and_die("Error writing to the socket");
+		bzero(message, MAX_MESSAGE_LENGTH);
 
 		//Receive response and check for errors
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
 		if(n < 0)
 			report_error_and_die("Error reading from socket");
-		printf("\nThem: %s\n", message);
+		printf("Them: %s\n", message);
 
 		//Zero out the message buffer so there are no left over chars
 		bzero(message, MAX_MESSAGE_LENGTH);
