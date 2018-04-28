@@ -58,8 +58,9 @@ void run_message_thread(int connected_socket_fd){
 	int n;
 
 	strcpy(message, " ");
+	printf("\n");
 	//Until the user enters QUIT keep going
-	while(strcmp(message, "QUIT") != 0){
+	while(strcmp(message, "QUIT\n") != 0){
 
 		bzero(message, MAX_MESSAGE_LENGTH);
 		printf("Them: ");
@@ -75,7 +76,7 @@ void run_message_thread(int connected_socket_fd){
 		printf("You: ");
 		fgets(message, MAX_MESSAGE_LENGTH, stdin);
 
-		if(strcmp(message, "QUIT") != 0){
+		if(strcmp(message, "QUIT\n") != 0){
 			//Send message and check for errors
 			n = send(connected_socket_fd, message, strlen(message), 0);
 			if(n < 0)
@@ -167,6 +168,7 @@ int wait_for_connections(int *server_fd){
 int main(){
 	printf("**************Welcome to Message in a Bottle**************\n");
 	printf("Be Nice and have a good time!!\n");
+	printf("Remember that to quite just type \"QUIT\"\n");
 	int socket_fd = make_server_socket();
 	wait_for_connections(&socket_fd);
 
