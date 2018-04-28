@@ -153,7 +153,7 @@ int wait_for_connections(int *server_fd){
 		EXIT_FAILURE otherwise
 */
 int main(){
-	printf("**************Welcome to Messaging in a Bottle**************\n");
+	printf("**************Welcome to Message in a Bottle**************\n");
 	printf("Be Nice and have a good time!!\n");
 	int socket_fd = make_server_socket();
 	wait_for_connections(&socket_fd);

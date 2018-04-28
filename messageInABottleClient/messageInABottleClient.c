@@ -122,7 +122,7 @@ int connect_to_server(char *server_dns){
 */
 int main(int argc, char ** argv){
 	if(argc > 1){
-		printf("**************Welcome to Messaging in a Bottle**************\n");
+		printf("**************Welcome to Message in a Bottle**************\n");
 		printf("You are currently connecting to: %s\n", argv[1]);
 		printf("Be Nice and have a good time!!\n");
 		int socket_fd = connect_to_server(argv[1]);
