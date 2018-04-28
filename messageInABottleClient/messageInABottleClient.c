@@ -76,6 +76,11 @@ void run_message_thread(int connected_socket_fd){
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
 		if(n < 0)
 			report_error_and_die("Error reading from socket");
+		else if(n == 0){
+			printf("\nThe person you were speaking to has exited\n");
+			teardown_socket(connected_socket_fd);
+			return;
+		}
 		printf("%s", message);
 
 		//Zero out the message buffer so there are no left over chars
