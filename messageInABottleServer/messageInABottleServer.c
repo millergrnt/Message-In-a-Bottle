@@ -18,6 +18,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #define MAX_MESSAGE_LENGTH 141
 #define KILL_WHOLE_SOCKET 2
@@ -30,6 +31,18 @@
 void report_error_and_die(char *error_message){
 	fprintf(stderr, "%s\n", error_message);
 	exit(EXIT_FAILURE);
+}
+
+/**
+	Tearsdown the socket
+	Param:
+		socket_to_teardown: The socket that will be terminated
+	Return:
+		None
+*/
+void teardown_socket(int socket_to_teardown_fd){
+	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
+	shutdown(socket_to_teardown_fd, KILL_WHOLE_SOCKET);
 }
 
 
@@ -54,7 +67,7 @@ void run_message_thread(int connected_socket_fd){
 		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
 		if(n < 0)
 			report_error_and_die("Error reading from socket");
-		printf("%s\n", message);
+		printf("%s", message);
 		//Zero out the message buffer so there are no left over chars
 		bzero(message, MAX_MESSAGE_LENGTH);
 
@@ -70,8 +83,7 @@ void run_message_thread(int connected_socket_fd){
 		}
 	}
 
-	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
-	shutdown(connected_socket_fd, KILL_WHOLE_SOCKET);
+	teardown_socket(connected_socket_fd);
 }
 
 
