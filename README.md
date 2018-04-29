@@ -4,6 +4,9 @@ Message in a Bottle is a C, command line based messaging system
 Currently it is unthreaded and is a 1-1 messaging system where each message needs a reply before you can continue to message
 
 Future wishes:
+
+  OpenSSL support for message security
+
   A sending thread who will handle all of the user's input and send them so you can send multiple messages before getting replies
   A recieving thread who will handle all of the responses for the same goal
   
