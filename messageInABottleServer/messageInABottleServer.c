@@ -11,6 +11,10 @@
 
 			Make it a simple Desktop app
 */
+#define MAX_MESSAGE_LENGTH 141
+#define KILL_WHOLE_SOCKET 2
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -23,8 +27,7 @@
 #include <ncurses.h>
 #include <init_screen.h>
 
-#define MAX_MESSAGE_LENGTH 141
-#define KILL_WHOLE_SOCKET 2
+int **max_rows_cols;
 
 
 /**
@@ -32,6 +35,7 @@
 	and then exits the program.
 */
 void report_error_and_die(char *error_message){
+	teardown_screen(max_rows_cols);
 	fprintf(stderr, "%s\n", error_message);
 	exit(EXIT_FAILURE);
 }
@@ -174,17 +178,19 @@ int wait_for_connections(int *server_fd){
 		EXIT_FAILURE otherwise
 */
 int main(){
-	int init_scrn_ret;
+	int socket_fd;
+	int *max_rows, *max_cols;
 
-	init_scrn_ret = init_screen();
-	if(init_scrn_ret != 0)
-		report_error_and_die("Error initializing the screen, exiting.\n");
+	max_rows_cols = init_screen();
+	max_rows = max_rows_cols[0];
+	max_cols = max_rows_cols[1];
 
-	printf("**************Welcome to Message in a Bottle**************\n");
-	printf("Be Nice and have a good time!!\n");
-	printf("Remember that to quite just type \"QUIT\"\n");
-	int socket_fd = make_server_socket();
+	print_at_pos(0, 0, "**************Welcome to Message in a Bottle**************");
+	print_at_pos(1, 0, "Be Nice and have a good time!!");
+	print_at_pos(2, 0, "Remember that to quite just type \"QUIT\"");
+	socket_fd = make_server_socket();
 	wait_for_connections(&socket_fd);
 
+	teardown_screen(max_rows_cols);
 	return EXIT_SUCCESS;
 }

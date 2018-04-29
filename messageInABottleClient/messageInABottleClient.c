@@ -11,6 +11,10 @@
 
 			Make it a simple Desktop app
 */
+#define MAX_MESSAGE_LENGTH 141
+#define KILL_WHOLE_SOCKET 2
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -23,15 +27,14 @@
 #include <ncurses.h>
 #include <init_screen.h>
 
-#define MAX_MESSAGE_LENGTH 141
-#define KILL_WHOLE_SOCKET 2
-
+int **max_rows_cols;
 
 /**
 	Takes in the error message, prints it to stderr
 	and then exits the program.
 */
 void report_error_and_die(char *error_message){
+	teardown_screen(max_rows_cols);
 	fprintf(stderr, "%s\n", error_message);
 	exit(EXIT_FAILURE);
 }
@@ -115,9 +118,9 @@ int connect_to_server(char *server_dns){
 
 	//Get server data
 	server = gethostbyname(server_dns);
-	if(server == NULL){
+	if(server == NULL)
 		report_error_and_die("Error getting server host data");
-	}
+
 
 	//Zero out the server_address array, this will prevent
 	//errors based around us not knowing if the memory is 0
@@ -143,23 +146,30 @@ int connect_to_server(char *server_dns){
 		EXIT_SUCCESS if okay
 		EXIT_FAILURE otherwise
 */
-int main(int argc, char ** argv){
-	int init_scrn_ret;
+int main(int argc, char **argv){
+	int socket_fd;
+	int *max_rows, *max_cols;
 
-	init_scrn_ret = init_screen();
-	if(init_scrn_ret != 0)
-		report_error_and_die("Error initializing the screen, exiting.\n");
+	max_rows_cols = init_screen();
+	max_rows = max_rows_cols[0];
+	max_cols = max_rows_cols[1];
 
 	if(argc > 1){
-		printf("**************Welcome to Message in a Bottle**************\n");
-		printf("You are currently connecting to: %s\n", argv[1]);
-		printf("Be Nice and have a good time!!\n");
-		printf("Remember that to quite just type \"QUIT\"\n");
-		int socket_fd = connect_to_server(argv[1]);
+		char *connection_string;
+		asprintf(&connection_string, "You are currently connecting to: %s", argv[1]);
+
+		print_at_pos(0, 0, "**************Welcome to Message in a Bottle**************");
+		print_at_pos(1, 0, connection_string);
+		print_at_pos(2, 0, "Be Nice and have a good time!!");
+		print_at_pos(3, 0, "Remember that to quite just type \"QUIT\"");
+		socket_fd = connect_to_server(argv[1]);
 		run_message_thread(socket_fd);
 	} else {
-		printf("**************Welcome to Message in a Bottle**************\n");
-		printf("You never supplied someone to talk to :( exiting\n");
+		mvprintw(0, 0, "**************Welcome to Message in a Bottle**************");
+		mvprintw(1, 0, "You never supplied someone to talk to :( exiting");
+		refresh();
 	}
+
+	teardown_screen(max_rows_cols);
 	return EXIT_SUCCESS;
 }
