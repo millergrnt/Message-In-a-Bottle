@@ -20,6 +20,8 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <curses.h>
+#include <ncurses.h>
+#include <init_screen.h>
 
 #define MAX_MESSAGE_LENGTH 141
 #define KILL_WHOLE_SOCKET 2
@@ -142,7 +144,12 @@ int connect_to_server(char *server_dns){
 		EXIT_FAILURE otherwise
 */
 int main(int argc, char ** argv){
-	clear();
+	int init_scrn_ret;
+
+	init_scrn_ret = init_screen();
+	if(init_scrn_ret != 0)
+		report_error_and_die("Error initializing the screen, exiting.\n");
+
 	if(argc > 1){
 		printf("**************Welcome to Message in a Bottle**************\n");
 		printf("You are currently connecting to: %s\n", argv[1]);
