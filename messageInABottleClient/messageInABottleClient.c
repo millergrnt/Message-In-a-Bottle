@@ -19,6 +19,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <curses.h>
 
 #define MAX_MESSAGE_LENGTH 141
 #define KILL_WHOLE_SOCKET 2
@@ -49,7 +50,7 @@ void teardown_socket(int socket_to_teardown_fd){
 
 /**
 	Controls the actual message sending and receiving.
-	For now is a one to one ratio, next thing to do is 
+	For now is a one to one ratio, next thing to do is
 	make two threads. One for sending messages, the other
 	for receiving messages.
 */
@@ -109,14 +110,14 @@ int connect_to_server(char *server_dns){
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock_fd < 0)
 		report_error_and_die("Error creating socket");
-	
+
 	//Get server data
 	server = gethostbyname(server_dns);
 	if(server == NULL){
 		report_error_and_die("Error getting server host data");
 	}
 
-	//Zero out the server_address array, this will prevent 
+	//Zero out the server_address array, this will prevent
 	//errors based around us not knowing if the memory is 0
 	bzero((char *) &server_address, sizeof(server_address));
 	server_address.sin_family = AF_INET;
@@ -141,6 +142,7 @@ int connect_to_server(char *server_dns){
 		EXIT_FAILURE otherwise
 */
 int main(int argc, char ** argv){
+	clear();
 	if(argc > 1){
 		printf("**************Welcome to Message in a Bottle**************\n");
 		printf("You are currently connecting to: %s\n", argv[1]);
