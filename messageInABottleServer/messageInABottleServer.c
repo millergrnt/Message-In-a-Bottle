@@ -26,6 +26,8 @@
 #include <curses.h>
 #include <ncurses.h>
 #include <init_screen.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 int **max_rows_cols;
 
@@ -47,9 +49,9 @@ void report_error_and_die(char *error_message){
 	Return:
 		None
 */
-void teardown_socket(int socket_to_teardown_fd){
+void teardown_socket(int *socket_to_teardown_fd){
 	printf("Thanks for using Message in a Bottle!\nShutting down now...\n");
-	shutdown(socket_to_teardown_fd, KILL_WHOLE_SOCKET);
+	shutdown(*socket_to_teardown_fd, KILL_WHOLE_SOCKET);
 }
 
 
@@ -58,8 +60,12 @@ void teardown_socket(int socket_to_teardown_fd){
 	For now is a one to one ratio, next thing to do is
 	make two threads. One for sending messages, the other
 	for receiving messages.
+	Params:
+		SSL *ssl: SSL session which includes our socket
+	Return:
+		None
 */
-void run_message_thread(int connected_socket_fd){
+void run_message_thread(SSL *ssl){
 	//Maximum message size is 141 characters
 	char message[MAX_MESSAGE_LENGTH];
 	int n;
@@ -72,12 +78,9 @@ void run_message_thread(int connected_socket_fd){
 		bzero(message, MAX_MESSAGE_LENGTH);
 		printf("Them: ");
 		//Receive response and check for errors
-		n = recv(connected_socket_fd, message, MAX_MESSAGE_LENGTH, 0);
-		if(n < 0)
-			report_error_and_die("Error reading from socket");
-		else if(n == 0){
+		n = SSL_read(ssl, message, MAX_MESSAGE_LENGTH);
+		if(n == 0){
 			printf("\nThe person you were speaking to has exited\n");
-			teardown_socket(connected_socket_fd);
 			return;
 		}
 		printf("%s", message);
@@ -90,13 +93,10 @@ void run_message_thread(int connected_socket_fd){
 
 		if(strcmp(message, "QUIT\n") != 0){
 			//Send message and check for errors
-			n = send(connected_socket_fd, message, strlen(message), 0);
-			if(n < 0)
-				report_error_and_die("Error writing to the socket");
+			n = SSL_write(ssl, message, strlen(message));
 		}
 	}
 
-	teardown_socket(connected_socket_fd);
 }
 
 
@@ -143,12 +143,13 @@ int make_server_socket(){
 	------Update this with threading so that you can talk to
 			up to 5 people at once
 	Params:
-		server_fd: Server socket who will begin listening and
+		int *server_fd: Server socket who will begin listening and
 					then do what it needs to
+		SSL_CTX *ctx: SSL context
 	Return:
 		returns EXIT_SUCCESS once all all connections are done
 */
-int wait_for_connections(int *server_fd){
+int wait_for_connections(int *server_fd, SSL_CTX *ctx){
 	int connected_socket_fd;
 	int unsigned client_length;
 	struct sockaddr_in client_address;
@@ -162,13 +163,69 @@ int wait_for_connections(int *server_fd){
 	if(connected_socket_fd < 0)
 		report_error_and_die("Error with client connection");
 
+	//SSL Wrap the connection
+	SSL *ssl = SSL_new(ctx);
+	SSL_set_fd(ssl, connected_socket_fd);
+	if(SSL_accept(ssl) <= 0)
+		report_error_and_die("Error wrapping connection");
+
 	inet_ntop(AF_INET, ((struct sockaddr*) &client_address)->sa_data, address, INET_ADDRSTRLEN);
 	printf("Connected to %s", address);
 
-	run_message_thread(connected_socket_fd);
+	run_message_thread(ssl);
+
+	SSL_free(ssl);
+	teardown_socket(&connected_socket_fd);
+	teardown_socket(server_fd);
+	SSL_CTX_free(ctx);
 
 	return EXIT_SUCCESS;
 }
+
+
+/**
+	Creates the context to be used by SSL
+	Params:
+		None
+	Return:
+		Created SSL context struct
+*/
+SSL_CTX *create_context(){
+	const SSL_METHOD *method;
+	SSL_CTX *ctx;
+
+	method = SSLv23_server_method();
+	ctx = SSL_CTX_new(method);
+
+	if(ctx == NULL)
+		report_error_and_die("Error creating SSL context\n");
+
+	return ctx;
+}
+
+
+/**
+	Configures the SSL context for use by loading
+	in the different certificates and key files
+	Params:
+		SSL_CTX *ctx: context to update
+	Return:
+		None
+*/
+void configure_context(SSL_CTX *ctx){
+	SSL_CTX_set_ecdh_auto(ctx, 1);
+
+	if (SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM) <= 0) {
+    	ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+    }
+
+    if (SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM) <= 0 ) {
+    	ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+    }
+}
+
 
 
 /**
@@ -180,16 +237,24 @@ int wait_for_connections(int *server_fd){
 int main(){
 	int socket_fd;
 	int *max_rows, *max_cols;
+	SSL_CTX *ctx;
 
+	//Initiate the curses session
 	max_rows_cols = init_screen();
 	max_rows = max_rows_cols[0];
 	max_cols = max_rows_cols[1];
+
+	//Initiate openssl libraries
+	SSL_load_error_strings();
+	OpenSSL_add_ssl_algorithms();
+	ctx = create_context();
+	configure_context(ctx);
 
 	print_at_pos(0, 0, "**************Welcome to Message in a Bottle**************");
 	print_at_pos(1, 0, "Be Nice and have a good time!!");
 	print_at_pos(2, 0, "Remember that to quite just type \"QUIT\"");
 	socket_fd = make_server_socket();
-	wait_for_connections(&socket_fd);
+	wait_for_connections(&socket_fd, ctx);
 
 	teardown_screen(max_rows_cols);
 	return EXIT_SUCCESS;

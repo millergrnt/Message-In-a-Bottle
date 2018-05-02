@@ -26,6 +26,8 @@
 #include <curses.h>
 #include <ncurses.h>
 #include <init_screen.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 int **max_rows_cols;
 
